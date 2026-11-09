@@ -1,0 +1,28 @@
+[project]
+name = "iris"
+version = "0.1.0"
+description = "Iris: Gleason / ISUP grading of prostate biopsies with attention MIL (PANDA)"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.4",
+    "torchvision>=0.19",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "scikit-image>=0.26",
+    "openslide-python",
+    "openslide-bin",     # ships the OpenSlide C library, no system package needed
+    "pillow",
+    "matplotlib",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "jupyter", "kaggle"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["iris*"]

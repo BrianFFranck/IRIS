@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.directory
+
+# never commit data or model weights
+/data/
+/runs/
+*.tiff
+*.pt
+*.h5
+kaggle.json
+*.egg-info/
+.pytest_cache/
+
+# personal notes, kept local
+START_HERE.txt
+IRIS_SIMPLE_GUIDE.txt
