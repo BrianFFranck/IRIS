@@ -53,4 +53,4 @@ def tile_coords(slide: openslide.OpenSlide, cfg: TileConfig) -> np.ndarray:
 def read_tile(slide: openslide.OpenSlide, xy, cfg: TileConfig) -> np.ndarray:
     x, y = int(xy[0]), int(xy[1])
     img = slide.read_region((x, y), cfg.level, (cfg.tile_size, cfg.tile_size))
-    return np.asarray(img.convert("RGB"))
+    return np.array(img.convert("RGB"))  # writable copy (avoids a torch warning)

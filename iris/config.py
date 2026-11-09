@@ -16,7 +16,7 @@ class Paths:
     coords: Path = DATA / "coords"        # one .npy of tile coordinates per slide
     features: Path = DATA / "features"    # one .pt feature bag per slide
     splits: Path = DATA / "splits.csv"
-    runs: Path = ROOT / "runs"                     # checkpoints, logs, predictions
+    runs: Path = DATA / "runs" if "IRIS_DATA_DIR" in os.environ else ROOT / "runs"                     # checkpoints, logs, predictions
 
     @property
     def train_csv(self) -> Path:
