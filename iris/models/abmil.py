@@ -1,14 +1,5 @@
 """IRIS v1: gated attention MIL (the core of CLAM-SB).
 
->>> THIS FILE IS YOURS TO FINISH. <<<
-It is the heart of Iris, so it is worth writing it yourself. The structure is
-here; the forward pass is a TODO. Read the paper first (~30 min, sections 2-3):
-  Ilse, Tomczak, Welling (2018), "Attention-based Deep Multiple Instance Learning"
-  https://arxiv.org/abs/1802.04712
-Then compare with CLAM's `Attn_Net_Gated` in mahmoodlab/CLAM, models/model_clam.py.
-
-The maths, for one bag of N tiles with features h_k (k = 1..N):
-
     h'_k = ReLU(W1 h_k)                          # compress 1024 -> hidden_dim
     a_k  = w^T ( tanh(V h'_k) * sigmoid(U h'_k) )  # one raw score per tile
     alpha = softmax(a_1..a_N)                    # attention: sums to 1 over tiles
