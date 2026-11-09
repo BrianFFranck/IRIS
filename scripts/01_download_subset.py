@@ -6,8 +6,11 @@ Usage:
   python scripts/01_download_subset.py --n 300
 """
 import argparse
+import shutil
 import subprocess
+import sys
 import zipfile
+from pathlib import Path
 
 import pandas as pd
 
@@ -15,13 +18,27 @@ from iris.config import PATHS
 
 COMP = "prostate-cancer-grade-assessment"
 
+# Use the kaggle CLI from the same environment as this Python, so the script
+# works even when the venv is not activated (e.g. `.venv/bin/python scripts/...`).
+_venv_kaggle = Path(sys.executable).parent / "kaggle"
+KAGGLE = str(_venv_kaggle) if _venv_kaggle.exists() else shutil.which("kaggle")
+if KAGGLE is None:
+    sys.exit("kaggle CLI not found: install it with  uv pip install kaggle")
 
-def kaggle_get(file: str, dest):
-    dest.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["kaggle", "competitions", "download", "-c", COMP, "-f", file, "-p", str(dest), "-q"], check=True)
-    for z in dest.glob("*.zip"):                 # kaggle sometimes zips single files
+
+def kaggle_get(file: str):
+    """Download one competition file into data/panda/, keeping its sub-folder
+    (e.g. train_images/<id>.tiff). The kaggle CLI recreates that sub-folder
+    itself and often delivers the file zipped, so unzip whatever arrives."""
+    PATHS.panda.mkdir(parents=True, exist_ok=True)
+    subprocess.run([KAGGLE, "competitions", "download", "-c", COMP, "-f", file, "-p", str(PATHS.panda), "-q"], check=True)
+    unzip_all()
+
+
+def unzip_all():
+    for z in PATHS.panda.rglob("*.zip"):
         with zipfile.ZipFile(z) as f:
-            f.extractall(dest)
+            f.extractall(z.parent)
         z.unlink()
 
 
@@ -32,7 +49,7 @@ def main():
     args = ap.parse_args()
 
     if not PATHS.train_csv.exists():
-        kaggle_get("train.csv", PATHS.panda)
+        kaggle_get("train.csv")
     df = pd.read_csv(PATHS.train_csv)
     print(df.groupby(["data_provider", "isup_grade"]).size().unstack(fill_value=0))
 
@@ -45,7 +62,7 @@ def main():
         if (PATHS.images / f"{image_id}.tiff").exists():
             continue
         print(f"[{i}/{len(sub)}] {image_id}")
-        kaggle_get(f"train_images/{image_id}.tiff", PATHS.images)
+        kaggle_get(f"train_images/{image_id}.tiff")
 
 
 if __name__ == "__main__":
