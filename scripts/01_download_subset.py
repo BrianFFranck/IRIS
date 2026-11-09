@@ -1,14 +1,6 @@
 """Download train.csv + a SMALL stratified subset of PANDA slides for local dev.
 
-The full PANDA train set is ~400 GB (10,616 slides): it does not fit on this
-laptop and you do not need it to develop. ~300 slides (~10-15 GB) is plenty to
-build and debug every step. The full run happens on Kaggle (see the guide).
-
-Setup (once):
-  1. kaggle.com -> join the "Prostate cANcer graDe Assessment (PANDA)" competition
-     and accept its rules (otherwise downloads give 403).
-  2. kaggle.com -> Settings -> API -> "Create New Token" -> saves kaggle.json
-  3. mkdir -p ~/.kaggle && mv ~/Downloads/kaggle.json ~/.kaggle/ && chmod 600 ~/.kaggle/kaggle.json
+The full PANDA train set is ~400 GB (10,616 slides)
 
 Usage:
   python scripts/01_download_subset.py --n 300
