@@ -1,11 +1,4 @@
-"""Turn each tile into a 1024-number vector with a frozen ResNet-50.
-
-This is the expensive step, and you do it ONCE. After that, every experiment
-(baseline, attention MIL, ...) trains on the saved vectors in seconds/minutes.
-
-Why truncate after layer3? It is what CLAM does: layer3 features are more
-"texture/tissue" and less "ImageNet object", and 1024-d is lighter than 2048-d.
-"""
+"""Turn each tile into a 1024-number vector with a frozen ResNet-50."""
 import torch
 import torch.nn as nn
 from torchvision import transforms
