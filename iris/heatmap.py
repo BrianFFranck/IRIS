@@ -1,8 +1,6 @@
 """Explainability: paint attention back onto the slide.
 
 >>> STUB: do this after Iris v1 trains. <<<
-
-You already have everything you need:
   - coords:    data/coords/<id>.npy   (N, 2) tile corners in level-0 px
   - attention: model(feats)["attention"]  (N,)  one number per tile
   - a thumbnail of the slide: iris.data.tiling.thumbnail(slide, level=2)
