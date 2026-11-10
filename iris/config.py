@@ -26,6 +26,10 @@ class Paths:
     def images(self) -> Path:
         return self.panda / "train_images"
 
+    @property
+    def masks(self) -> Path:
+        return self.panda / "train_label_masks"
+
 
 @dataclass
 class TileConfig:
