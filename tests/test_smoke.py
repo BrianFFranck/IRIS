@@ -27,6 +27,15 @@ def test_tissue_mask_finds_pink_blob():
     assert m[100, 100] and not m[10, 10]
 
 
+def test_tissue_mask_ignores_pen_ink_and_keeps_pale_tissue():
+    img = np.full((200, 200, 3), 245, dtype=np.uint8)      # glass
+    img[40:160, 40:160] = (235, 205, 220)                   # PALE pink tissue
+    img[20:180, 10:30] = (40, 140, 90)                      # green pen stroke
+    m = tissue_mask(img)
+    assert m[100, 100], "pale tissue should count as tissue"
+    assert not m[100, 20], "green ink should not count as tissue"
+
+
 def test_qwk_perfect_and_bad():
     assert qwk([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]) == pytest.approx(1.0)
     assert qwk([0, 1, 2, 3, 4, 5], [5, 4, 3, 2, 1, 0]) < 0

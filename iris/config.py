@@ -35,7 +35,7 @@ class TileConfig:
     level: int = 1
     tile_size: int = 256          # pixels, at `level`
     mask_level: int = -1          # -1 = lowest-resolution level, used only for the tissue mask
-    min_tissue: float = 0.5       # keep a tile if at least this fraction is tissue
+    min_tissue: float = 0.25      # keep a tile if at least this fraction is tissue (0.5 missed thin cores)
 
 
 @dataclass
