@@ -3,7 +3,10 @@
 A run folder (runs/<date>_<model>/fold*/) already holds everything needed:
 history.json (QWK per epoch) and val_preds.json (predictions at the best epoch).
 From those this module builds one table row, puts it at the top of the Models
-table, pushes experiments.md and asks the profile repo to redraw the lab card.
+table. If the run is a new best (highest mean validation QWK so far) it also
+pushes experiments.md and asks the profile repo to redraw the lab card, which always
+shows the best run. Runs that are not a new best are logged locally and stay off
+GitHub until the log is next pushed.
 
 Only experiments.md is ever committed here. Data, weights and run folders stay local.
 """
@@ -100,10 +103,16 @@ def _run(*cmd) -> bool:
     return r.returncode == 0
 
 
-def log_run(run_dir: Path, note: str = "", settings: str = "", publish: bool = True, dry_run: bool = False) -> str:
+def log_run(run_dir: Path, note: str = "", settings: str = "", publish="auto", dry_run: bool = False) -> str:
+    """publish: "auto" = only when the run is a new best, True = always, False = never."""
     s = summarise(Path(run_dir))
     text = LOG.read_text(encoding="utf-8")
-    row = make_row(s, note or auto_note(s, previous_best(text)), settings)
+    best = previous_best(text)
+    row = make_row(s, note or auto_note(s, best), settings)
+    if publish == "auto":
+        publish = best is None or s["mean"] > best + 0.005
+        if not publish:
+            print(f"val QWK {s['mean']:.2f} does not beat the best so far ({best:.2f}): logged here only, nothing pushed")
     if dry_run:
         return row
     if f"`{s['folder']}`" in text:

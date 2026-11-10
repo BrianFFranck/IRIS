@@ -5,8 +5,9 @@ Usage:
   python scripts/04_train.py --model abmil              # Iris v1 (after you finish abmil.py)
   python scripts/04_train.py --model meanmax --folds 0  # just one fold, quick
 
-A full run (all folds) is written to experiments.md, pushed, and shown on the GitHub
-profile card by itself. Quick runs with --folds are never logged. Use --no-log to skip.
+A full run (all folds) is written to experiments.md by itself. If it is a new best it is
+also pushed and shown on the GitHub profile card; otherwise it stays local. Quick runs
+with --folds are never logged. Use --no-log to skip logging altogether.
   python scripts/04_train.py --model abmil --note "what you learned from this run"
 """
 import argparse

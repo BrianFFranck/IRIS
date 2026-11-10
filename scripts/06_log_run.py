@@ -7,7 +7,10 @@ Usage:
   python scripts/06_log_run.py                       # newest run folder
   python scripts/06_log_run.py runs/20261110-1707_meanmax --dry-run
   python scripts/06_log_run.py --note "Attention finally separates GG1 from GG2."
-  python scripts/06_log_run.py --no-publish          # write the row, don't push
+  python scripts/06_log_run.py --no-publish          # write the row, never push
+  python scripts/06_log_run.py --publish             # push even if it is not a new best
+
+By default the log is pushed and the profile card redrawn only when the run is a new best.
 """
 import argparse
 from pathlib import Path
@@ -22,10 +25,11 @@ def main():
     ap.add_argument("--note", default="", help="your finding, in a sentence or two (default: written from the numbers)")
     ap.add_argument("--settings", default="", help="anything worth recording, e.g. 'boundary-weighted loss'")
     ap.add_argument("--no-publish", action="store_true", help="don't commit, push or refresh the profile card")
+    ap.add_argument("--publish", action="store_true", help="push and refresh the card even if the run is not a new best")
     ap.add_argument("--dry-run", action="store_true", help="print the row and change nothing")
     args = ap.parse_args()
     run = args.run or max(p for p in PATHS.runs.iterdir() if p.is_dir())
-    row = log_run(run, args.note, args.settings, publish=not args.no_publish, dry_run=args.dry_run)
+    row = log_run(run, args.note, args.settings, publish=False if args.no_publish else (True if args.publish else "auto"), dry_run=args.dry_run)
     if args.dry_run:
         print(row)
 
