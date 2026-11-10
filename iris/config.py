@@ -1,4 +1,4 @@
-"""One place for paths and knobs. Change things here, not scattered in scripts."""
+"""One place for paths and knobs."""
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,8 +30,6 @@ class Paths:
 @dataclass
 class TileConfig:
     # PANDA .tiff files have 3 levels: 0 (full res, ~0.5 um/px), 1 (4x down), 2 (16x down).
-    # Start at level 1: it is small enough for a laptop and still works decently.
-    # Later try level 0 (much slower, more detail for Gleason patterns).
     level: int = 1
     tile_size: int = 256          # pixels, at `level`
     mask_level: int = -1          # -1 = lowest-resolution level, used only for the tissue mask
