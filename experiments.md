@@ -9,7 +9,7 @@ One row per run. Add new runs at the **top** of each table. Write down what you 
 
 | Date | Model | Slides | Level | Settings | val QWK (5-fold) | GG2 called GG2 | Run folder | Notes |
 |---|---|---|---|---|---|---|---|---|
-| 2026-11-10 | meanmax (baseline) | 299 | 1 (~5×) | 30 epochs, CE loss, lr 2e-4 | **0.47 ± 0.11** (folds 0.47 / 0.39 / 0.55 / 0.62 / 0.32) | 0 / 38 | `20261110-1707_meanmax` | Never predicts GG2; most GG2 called ISUP 0 (13) or 1 (15). Train QWK ≈ val QWK, so the model is too simple rather than overfitting. **Number to beat.** |
+| 2026-11-10 | meanmax (baseline) | 299 | 1 (~5×) | 30 epochs, CE loss, lr 2e-4 | **0.47 ± 0.11** (folds 0.47 / 0.39 / 0.55 / 0.62 / 0.32) | 0 / 38 | `20261110-1707_meanmax` | Never predicts GG2; most GG2 called ISUP 0 (13) or 1 (15). Train QWK ≈ val QWK, so the model is underfitting rather than overfitting. **Number to beat.** |
 | 2026-11-10 | meanmax (baseline) | 20 | 1 | 5 epochs | 0.00 | – | – | Pipeline smoke test only. Validation folds of 1–9 slides are too small to mean anything. |
 
 ## Data and tiling
