@@ -18,7 +18,7 @@ import pandas as pd
 
 from iris.config import PATHS, TrainConfig
 from iris.data.dataset import BagDataset
-from iris.data.splits import make_folds
+from iris.data.splits import make_folds, make_test_split
 from iris.models import MODELS
 from iris.runlog import log_run
 from iris.train import train_fold
@@ -39,11 +39,16 @@ def main():
     if args.epochs:
         cfg.epochs = args.epochs
 
-    if PATHS.splits.exists():
-        df = pd.read_csv(PATHS.splits)
-    else:
-        df = make_folds(pd.read_csv(PATHS.train_csv), cfg.n_folds, cfg.seed)
-        df.to_csv(PATHS.splits, index=False)       # freeze splits so every run uses the same
+    if not PATHS.splits.exists():
+        # First the held-out test set, then the folds on what is left. Both are frozen
+        # to disk so every run uses the same slides.
+        full = make_test_split(pd.read_csv(PATHS.train_csv), cfg.test_frac, cfg.seed)
+        full[full.is_test].drop(columns="is_test").to_csv(PATHS.test_split, index=False)
+        dev = make_folds(full[~full.is_test].drop(columns="is_test"), cfg.n_folds, cfg.seed)
+        dev.to_csv(PATHS.splits, index=False)
+    df = pd.read_csv(PATHS.splits)
+    test_ids = set(pd.read_csv(PATHS.test_split).image_id)
+    assert not test_ids & set(df.image_id), "test slides found in the development split"
 
     run_dir = PATHS.runs / f"{datetime.now():%Y%m%d-%H%M}_{args.model}"
     scores = []

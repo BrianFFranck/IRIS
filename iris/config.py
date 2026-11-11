@@ -15,7 +15,8 @@ class Paths:
     panda: Path = Path(os.environ.get("IRIS_PANDA_DIR", DATA / "panda"))  # train.csv + train_images/
     coords: Path = DATA / "coords"        # one .npy of tile coordinates per slide
     features: Path = DATA / "features"    # one .pt feature bag per slide
-    splits: Path = DATA / "splits.csv"
+    splits: Path = DATA / "splits.csv"            # development slides with their fold
+    test_split: Path = DATA / "test_split.csv"    # held-out test slides: never read during development
     runs: Path = DATA / "runs" if "IRIS_DATA_DIR" in os.environ else ROOT / "runs"                     # checkpoints, logs, predictions
 
     @property
@@ -50,6 +51,7 @@ class TrainConfig:
     weight_decay: float = 1e-5
     epochs: int = 30
     n_folds: int = 5
+    test_frac: float = 0.15       # share of slides held out as the final test set
     seed: int = 42
 
 

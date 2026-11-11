@@ -11,7 +11,7 @@ import torch
 
 from iris.config import TrainConfig
 from iris.data.dataset import BagDataset
-from iris.data.splits import make_folds
+from iris.data.splits import EXCLUDE, make_folds, make_test_split
 from iris.data.tissue import tissue_mask
 from iris.metrics import qwk
 from iris.models import GatedAttentionMIL, MeanMaxPoolMIL
@@ -47,6 +47,20 @@ def test_folds_cover_everything():
                        "isup_grade": [i % 6 for i in range(60)]})
     f = make_folds(df, n_folds=5)
     assert set(f.fold) == set(range(5)) and (f.fold >= 0).all()
+
+
+def test_test_split_is_stratified_and_repeatable():
+    df = pd.DataFrame({"image_id": [f"s{i}" for i in range(600)],
+                       "data_provider": ["karolinska", "radboud"] * 300,
+                       "isup_grade": [(i // 2) % 6 for i in range(600)]})
+    df.loc[0, "image_id"] = next(iter(EXCLUDE))
+    s = make_test_split(df, test_frac=0.15, seed=42)
+    assert len(s) == 599 and not s.image_id.isin(EXCLUDE).any()      # the bad slide is gone
+    assert s.is_test.sum() == 90                                     # 15% of the slides
+    per_group = s[s.is_test].groupby(["data_provider", "isup_grade"]).size()
+    assert len(per_group) == 12 and per_group.between(7, 8).all()    # every lab and grade, evenly
+    again = make_test_split(df, test_frac=0.15, seed=42)
+    assert (s.is_test == again.is_test).all()                        # same seed, same split
 
 
 def test_baseline_shapes():
