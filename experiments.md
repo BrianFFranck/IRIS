@@ -9,7 +9,8 @@ One row per run. Add new runs at the **top** of each table. Write down what you 
 
 | Date | Model | Slides | Level | Settings | val QWK (5-fold) | GG2 called GG2 | Run folder | Notes |
 |---|---|---|---|---|---|---|---|---|
-| 2026-11-11 | meanmax (baseline) | 998 | 1 (~5×) | 30 epochs, lr 0.0002, CE loss | **0.61 ± 0.05** (folds 0.63 / 0.69 / 0.59 / 0.54 / 0.62) | 1 / 125 | `20261111-1408_meanmax` | Three times more slides. QWK up +0.12 and the spread between folds halved (±0.05), so this is a real gain from data, not noise. But GG2 is still almost never predicted (1 of 125; 74 called ISUP 1, 19 ISUP 0), and ISUP 4 only 6 of 117: the model mostly answers 0, 1 or 5. More data did not fix GG2, which supports the idea that averaging the tiles is the problem. Train QWK 0.57 vs val 0.61: underfitting. **Number to beat.** |
+| 2026-11-11 | abmil (gated attention MIL) | 998 | 1 (~5×) | 30 epochs, lr 0.0002, CE loss | **0.69 ± 0.03** (folds 0.70 / 0.69 / 0.64 / 0.70 / 0.73) | 19 / 125 | `20261111-1603_abmil` | First attention model, on the same slides and folds as the baseline below. QWK +0.08: better in 4 of 5 folds and level in the fifth, and the gain is larger than the spread between folds. GG2 caught: 19 of 125 (baseline: 1), but 67 are still called ISUP 1, and 19 GG1 slides are now wrongly called GG2. ISUP 3 and 4 also improve (recall 0.32 and 0.28, from 0.20 and 0.05); ISUP 5 drops (0.48, from 0.59). Train QWK 0.71 vs val 0.69, and validation falls a little after the best epoch: a first mild sign of overfitting. **Number to beat.** |
+| 2026-11-11 | meanmax (baseline) | 998 | 1 (~5×) | 30 epochs, lr 0.0002, CE loss | **0.61 ± 0.05** (folds 0.63 / 0.69 / 0.59 / 0.54 / 0.62) | 1 / 125 | `20261111-1408_meanmax` | Three times more slides. QWK up +0.12 and the spread between folds halved (±0.05), so this is a real gain from data, not noise. But GG2 is still almost never predicted (1 of 125; 74 called ISUP 1, 19 ISUP 0), and ISUP 4 only 6 of 117: the model mostly answers 0, 1 or 5. More data did not fix GG2, which supports the idea that averaging the tiles is the problem. Train QWK 0.57 vs val 0.61: underfitting. |
 | 2026-11-11 | meanmax (baseline) | 298 | 1 (~5×) | 30 epochs, lr 0.0002, CE loss, new folds (held-out test set removed) | **0.49 ± 0.11** (folds 0.64 / 0.32 / 0.50 / 0.57 / 0.44) | 0 / 37 | `20261111-1212_meanmax` | Same model as the row below, re-measured after setting the held-out test set aside. Not an improvement: +0.02 is far smaller than the spread between folds (±0.11). Still never predicts GG2; missed GG2 mostly called ISUP 1 (15) or ISUP 0 (13). Train QWK 0.41 vs val 0.49: underfitting. To be re-measured on 1,000 slides. |
 | 2026-11-10 | meanmax (baseline) | 299 | 1 (~5×) | 30 epochs, CE loss, lr 2e-4 | **0.47 ± 0.11** (folds 0.47 / 0.39 / 0.55 / 0.62 / 0.32) | 0 / 38 | `20261110-1707_meanmax` | Never predicts GG2; most GG2 called ISUP 0 (13) or 1 (15). Train QWK ≈ val QWK, so the model is underfitting rather than overfitting. |
 | 2026-11-10 | meanmax (baseline) | 20 | 1 | 5 epochs | 0.00 | – | – | Pipeline smoke test only. Validation folds of 1–9 slides are too small to mean anything. |
@@ -27,7 +28,7 @@ One row per run. Add new runs at the **top** of each table. Write down what you 
 
 ## Ideas to try
 
-- [ ] Gated attention MIL (`abmil.py`): does it start recognising GG2?
+- [x] Gated attention MIL (`abmil.py`): does it start recognising GG2? Yes, a start: 19 of 125, up from 1 (2026-11-11)
 - [ ] Boundary-weighted loss (GG1 ↔ GG2 errors cost more)
 - [ ] Ordinal or regression loss instead of cross-entropy
 - [ ] Level 0 (20×) tiles on Kaggle
