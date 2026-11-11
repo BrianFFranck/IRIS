@@ -16,6 +16,7 @@ One row per run. Add new runs at the **top** of each table. Write down what you 
 
 | Date | What | Result | Notes |
 |---|---|---|---|
+| 2026-11-11 | Label check: `gleason_score` vs `isup_grade` on all 10,616 slides (`01_explore.ipynb`) | **1 slide disagrees:** `b0a92a74` (Karolinska) is labelled `4+3` but ISUP 2, where `4+3` should be ISUP 3. "No cancer" is written two ways: `0+0` (Karolinska, 1,925) and `negative` (Radboud, 967); both mean ISUP 0. | **Decision: drop the slide.** One of its two labels is wrong, and I can't ask the pathologist which one, so correcting it either way would be a guess. Dropping costs 1 slide out of 10,616. It is not in the 299-slide subset, so the results so far don't change. This check only shows that the two columns agree with each other, not that the labels are true. |
 | 2026-11-10 | Tiling check against PANDA label masks (`05_check_tiling.py`), 296 slides | Cancer recall, median: Karolinska **0.94**, Radboud **0.95** (10th percentile 0.89 for both). Tissue recall 0.92 / 0.87. Tile precision 0.59 / 0.73. | Worst slide keeps 78% of its cancer. Missed cancer is mostly at core edges. Idea for later: overlapping or shifted tile grid. |
 | 2026-11-10 | Tissue mask: ignore pen ink, cap Otsu threshold; `min_tissue` 0.5 → 0.25 | Tiles per slide (20 slides): min 2 → 17, median 27 → 45 | Pen ink made Otsu discard pale tissue: slide `1364c10e` (ISUP 5) went from 2 tiles to 18. |
 | 2026-11-10 | Downloaded 299 slides + 296 label masks | 9.8 GB + 1.1 GB | 3 slides have no mask on Kaggle. Stratified by lab and grade, seed 42. |
