@@ -23,15 +23,13 @@ class GatedAttentionMIL(nn.Module):
 
     def forward(self, h: torch.Tensor) -> dict:
         """h: (N, feat_dim) -> {"logits": (1, n_classes), "attention": (N,)}"""
-        # TODO 1: h' = self.fc(h)                                   -> (N, hidden_dim)
-        # TODO 2: raw scores a = attn_w( tanh(V h') * sigmoid(U h') ) -> (N, 1)
-        # TODO 3: alpha = softmax over the N tiles (careful with the dim!)
-        # TODO 4: z = weighted sum of h' with alpha                  -> (hidden_dim,)
-        # TODO 5: logits = self.classifier(z), reshape to (1, n_classes)
-        # Return the attention too, the heatmap needs it.
-        # Check yourself with:  pytest tests/ -k abmil
-        raise NotImplementedError("Your turn! See the docstring at the top of abmil.py")
 
-# LATER (Iris v1.5): CLAM adds an "instance-level clustering" loss on the top-k
-# and bottom-k attended tiles. Add it only once plain ABMIL works and you can
-# measure whether it helps.
+        h1 = self.fc(h)
+        t = torch.tanh(self.attn_V(h1))
+        g = torch.sigmoid(self.attn_U(h1))
+        a = self.attn_w(t * g)
+        alpha = torch.softmax(a, dim=0)
+        z = (alpha * h1).sum(dim=0)   
+        logits = self.classifier(z).unsqueeze(0) 
+        return {"logits": logits, "attention": alpha.squeeze(1)}
+
