@@ -13,7 +13,7 @@ from iris.config import TrainConfig
 from iris.data.dataset import BagDataset
 from iris.data.splits import EXCLUDE, make_folds, make_test_split
 from iris.data.tissue import tissue_mask
-from iris.metrics import qwk
+from iris.metrics import gg1_vs_gg2, qwk
 from iris.models import GatedAttentionMIL, MeanMaxPoolMIL
 from iris.train import train_fold
 
@@ -39,6 +39,13 @@ def test_tissue_mask_ignores_pen_ink_and_keeps_pale_tissue():
 def test_qwk_perfect_and_bad():
     assert qwk([0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5]) == pytest.approx(1.0)
     assert qwk([0, 1, 2, 3, 4, 5], [5, 4, 3, 2, 1, 0]) < 0
+
+
+def test_gg1_vs_gg2_counts():
+    # true:  GG2 GG2 GG2 GG1 GG1 GG3
+    # pred:  GG2 GG1 GG3 GG2 GG1 GG2
+    r = gg1_vs_gg2([2, 2, 2, 1, 1, 3], [2, 1, 3, 2, 1, 2])
+    assert r == {"n_gg2": 3, "gg2_called_gg2": 1, "gg2_called_gg1": 1, "n_gg1": 2, "gg1_called_gg2": 1}
 
 
 def test_folds_cover_everything():
