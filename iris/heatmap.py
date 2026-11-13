@@ -1,23 +1,49 @@
 """Explainability: paint attention back onto the slide.
 
->>> STUB: do this after Iris v1 trains. <<<
-  - coords:    data/coords/<id>.npy   (N, 2) tile corners in level-0 px
-  - attention: model(feats)["attention"]  (N,)  one number per tile
-  - a thumbnail of the slide: iris.data.tiling.thumbnail(slide, level=2)
+Inputs:
+  - slide_path: the slide's .tiff
+  - coords:     bag["coords"], (N, 2) tile corners in level-0 px
+  - attention:  model(feats)["attention"], (N,) one number per tile
 
-Plan:
-  1. Make an empty float array the size of the thumbnail.
-  2. For each tile k: convert coords[k] to thumbnail px (divide by the
-     thumbnail level's downsample) and fill that square with attention[k].
-  3. Normalise. Raw attention sums to 1, so with 300 tiles the values are tiny.
-     Use percentile ranks (scipy.stats.rankdata / N) so the map is readable.
-  4. Show the thumbnail with plt.imshow, then the heatmap on top with
-     cmap="jet", alpha=0.4, and transparency where there is no tissue.
-  5. Sanity check on RADBOUD slides: PANDA has pixel masks
-     (train_label_masks/) with Gleason 3/4/5 regions. Does high attention
-     overlap the cancer? That is a real, quantitative explainability result.
+Colours show each tile's attention RANK (0 = lowest, 1 = highest), not the raw
+weight: raw weights sum to 1, so most of them are tiny and the map would be
+unreadable. A rank map shows WHERE Iris looked relative to the rest of the slide,
+not HOW concentrated the attention was; report that separately, in numbers.
+Glass with no tile stays uncoloured, so tissue that was never tiled is visible too.
+
+Later: on Radboud slides, compare high attention with the Gleason 3/4/5 regions
+in PANDA's label masks (train_label_masks/). That turns the picture into a number.
 """
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from scipy.stats import rankdata
+
+from iris.config import TileConfig
+from iris.data.tiling import open_slide, thumbnail
 
 
 def attention_heatmap(slide_path, coords, attention, level: int = 2):
-    raise NotImplementedError
+    
+    slide = open_slide(slide_path)
+    img = thumbnail(slide, level)
+    down = slide.level_downsamples[level]                    
+    size = round(TileConfig().tile_size * 
+    slide.level_downsamples[TileConfig().level] / down)
+    pos = (np.asarray(coords) // down).astype(int)             
+    attention = torch.as_tensor(attention).detach().numpy()
+
+    ranks = rankdata(attention) / len(attention)          
+    heat = np.zeros(img.shape[:2])                        
+
+    for k in range(len(attention)):                       
+        x, y = pos[k]
+        heat[y:y + size, x:x + size] = ranks[k]
+
+    shown = np.ma.masked_equal(heat, 0)                   
+
+    fig = plt.figure(figsize=(img.shape[1] / 100, img.shape[0] / 100))                     
+    plt.imshow(img)
+    plt.imshow(shown, cmap="jet", alpha=0.4)
+    plt.colorbar(label="attention rank (0 = lowest, 1 = highest)")
+    return fig
