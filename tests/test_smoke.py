@@ -14,6 +14,7 @@ from iris.data.dataset import BagDataset
 from iris.data.splits import EXCLUDE, make_folds, make_test_split
 from iris.data.tissue import tissue_mask
 from iris.metrics import gg1_vs_gg2, qwk
+from iris.runlog import is_clear_gain, previous_best
 from iris.models import GatedAttentionMIL, MeanMaxPoolMIL
 from iris.train import train_fold
 
@@ -105,3 +106,14 @@ def test_training_end_to_end(tmp_path):
     cfg = TrainConfig(epochs=8, lr=1e-3)
     best = train_fold(MeanMaxPoolMIL(), ds, ds, cfg, tmp_path / "run")
     assert best > 0.8
+
+
+def test_new_best_needs_same_slides_and_more_than_noise():
+    log = ("| 2026-11-11 | abmil | 998 | 1 | x | **0.69 ± 0.03** (folds) | 19 / 125 | `a` | n |\n"
+           "| 2026-11-10 | meanmax | 299 | 1 | x | **0.47 ± 0.11** (folds) | 0 / 38 | `b` | n |\n")
+    best = previous_best(log, 998)
+    assert best == (0.69, 0.03)
+    assert previous_best(log, 1500) is None                       # other slide count: nothing to compare
+    assert not is_clear_gain({"mean": 0.71, "std": 0.03}, best)     # +0.02: noise
+    assert is_clear_gain({"mean": 0.74, "std": 0.03}, best)         # +0.05: real
+

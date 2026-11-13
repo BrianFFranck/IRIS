@@ -3,10 +3,11 @@
 A run folder (runs/<date>_<model>/fold*/) already holds everything needed:
 history.json (QWK per epoch) and val_preds.json (predictions at the best epoch).
 From those this module builds one table row, puts it at the top of the Models
-table. If the run is a new best (highest mean validation QWK so far) it also
-pushes experiments.md and asks the profile repo to redraw the lab card, which always
-shows the best run. Runs that are not a new best are logged locally and stay off
-GitHub until the log is next pushed.
+table. A run only counts as a new best when it beats the best earlier run ON THE
+SAME NUMBER OF SLIDES by more than the spread between folds (the larger of the two
+stds); a smaller gain is noise. Only a clear new best is pushed automatically and
+asks the profile repo to redraw the lab card. Everything else is logged locally and
+stays off GitHub until the log is next pushed.
 
 Only experiments.md is ever committed here. Data, weights and run folders stay local.
 """
@@ -51,17 +52,34 @@ def summarise(run_dir: Path) -> dict:
             "gg2_miss": Counter(p for p in gg2 if p != 2).most_common(2), "n_folds": len(folds)}
 
 
-def previous_best(text: str):
-    vals = [float(v) for v in re.findall(r"\*\*(\d\.\d+) ± \d\.\d+\*\*", text)]
-    return max(vals) if vals else None
+def previous_best(text: str, slides: int):
+    """(mean, std) of the best logged run on the same number of slides, or None."""
+    runs = []
+    for line in text.splitlines():
+        cells = [c.strip() for c in line.split("|")]
+        m = re.search(r"\*\*(\d\.\d+) ± (\d\.\d+)\*\*", line)
+        if m and len(cells) > 3 and cells[3].isdigit() and int(cells[3]) == slides:
+            runs.append((float(m.group(1)), float(m.group(2))))
+    return max(runs) if runs else None
+
+
+def is_clear_gain(s: dict, best) -> bool:
+    """True when the run beats `best` by more than the spread between folds."""
+    return best is not None and s["mean"] - best[0] > max(s["std"], best[1])
 
 
 def auto_note(s: dict, best) -> str:
     parts = []
-    if best is not None:
-        d = s["mean"] - best
-        parts.append(f"New best, {d:+.2f} over {best:.2f}." if d > 0.005 else
-                     (f"Level with the best so far ({best:.2f})." if d > -0.005 else f"Below the best so far ({best:.2f}).")) 
+    if best is None:
+        parts.append(f"First run on {s['slides']} slides: nothing to compare with yet.")
+    else:
+        d, noise = s["mean"] - best[0], max(s["std"], best[1])
+        if is_clear_gain(s, best):
+            parts.append(f"New best, {d:+.2f} over {best[0]:.2f} on the same slides, larger than the spread between folds (±{noise:.2f}).")
+        elif abs(d) <= noise:
+            parts.append(f"Within noise of the best so far ({best[0]:.2f}): the difference ({d:+.2f}) is smaller than the spread between folds (±{noise:.2f}).")
+        else:
+            parts.append(f"Below the best so far ({best[0]:.2f}) by more than the spread between folds.")
     if s["gg2_n"]:
         if s["gg2_hit"] == 0:
             parts.append("Never predicts GG2.")
@@ -104,15 +122,16 @@ def _run(*cmd) -> bool:
 
 
 def log_run(run_dir: Path, note: str = "", settings: str = "", publish="auto", dry_run: bool = False) -> str:
-    """publish: "auto" = only when the run is a new best, True = always, False = never."""
+    """publish: "auto" = only when the run is a clear new best, True = always, False = never."""
     s = summarise(Path(run_dir))
     text = LOG.read_text(encoding="utf-8")
-    best = previous_best(text)
+    best = previous_best(text, s["slides"])
     row = make_row(s, note or auto_note(s, best), settings)
     if publish == "auto":
-        publish = best is None or s["mean"] > best + 0.005
+        publish = is_clear_gain(s, best)
         if not publish:
-            print(f"val QWK {s['mean']:.2f} does not beat the best so far ({best:.2f}): logged here only, nothing pushed")
+            print(f"val QWK {s['mean']:.2f} ± {s['std']:.2f} is not a clear new best on {s['slides']} slides: "
+                  "logged here only, nothing pushed (use --publish to push anyway)")
     if dry_run:
         return row
     if f"`{s['folder']}`" in text:

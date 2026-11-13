@@ -53,6 +53,7 @@ class TrainConfig:
     n_folds: int = 5
     test_frac: float = 0.15       # share of slides held out as the final test set
     seed: int = 42
+    class_weights: bool = False   # weight the loss so rarer grades cost more (see train.py)
 
 
 PATHS = Paths()

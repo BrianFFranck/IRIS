@@ -51,7 +51,13 @@ def train_fold(model, train_ds, val_ds, cfg: TrainConfig, out_dir: Path, device=
     # TODO (experiment): ISUP is ORDINAL (0<1<...<5) but CrossEntropy treats it as
     # 6 unrelated classes. Try regression (1 output + MSELoss, then round /
     # optimise thresholds), which most top PANDA solutions used, and compare QWK.
-    loss_fn = nn.CrossEntropyLoss()
+    weight = None
+    if cfg.class_weights:
+        counts = np.bincount(train_ds.df.isup_grade, minlength=cfg.n_classes)
+        weight = torch.tensor(counts.sum() / (cfg.n_classes * counts),                              dtype=torch.float32)
+        
+    loss_fn = nn.CrossEntropyLoss(weight=weight)
+    
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.epochs)
 

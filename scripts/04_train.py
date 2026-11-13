@@ -4,6 +4,7 @@ Usage:
   python scripts/04_train.py --model meanmax            # the baseline
   python scripts/04_train.py --model abmil              # Iris v1 (after you finish abmil.py)
   python scripts/04_train.py --model meanmax --folds 0  # just one fold, quick
+  python scripts/04_train.py --model abmil --class-weights   # rarer grades cost more
 
 A full run (all folds) is written to experiments.md by itself. If it is a new best it is
 also pushed and shown on the GitHub profile card; otherwise it stays local. Quick runs
@@ -33,11 +34,15 @@ def main():
     ap.add_argument("--note", default="", help="your finding for experiments.md (default: written from the numbers)")
     ap.add_argument("--settings", default="", help="extra settings to record, e.g. 'boundary-weighted loss'")
     ap.add_argument("--no-log", action="store_true", help="don't write this run to experiments.md or the profile")
+    ap.add_argument("--class-weights", action="store_true", help="weight the loss so rarer grades cost more")
     args = ap.parse_args()
 
     cfg = TrainConfig()
     if args.epochs:
         cfg.epochs = args.epochs
+    if args.class_weights:
+        cfg.class_weights = True
+        args.settings = ", ".join(x for x in ["class-weighted CE", args.settings] if x)
 
     if not PATHS.splits.exists():
         # First the held-out test set, then the folds on what is left. Both are frozen
