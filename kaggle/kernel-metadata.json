@@ -1,0 +1,13 @@
+{
+  "id": "imatlas/iris-20x-test",
+  "title": "iris-20x-test",
+  "code_file": "iris_20x_test.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": ["prostate-cancer-grade-assessment"],
+  "kernel_sources": []
+}

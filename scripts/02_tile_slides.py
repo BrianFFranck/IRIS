@@ -3,6 +3,7 @@
 Usage:
   python scripts/02_tile_slides.py            # all slides in data/panda/train_images
   python scripts/02_tile_slides.py --limit 5  # quick try
+  python scripts/02_tile_slides.py --ids ids.txt   # only the slides listed (one image_id per line)
 """
 import argparse
 
@@ -16,11 +17,17 @@ from iris.data.tiling import open_slide, tile_coords
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--ids", default=None, help="text file with one image_id per line: tile only those slides")
     args = ap.parse_args()
 
     cfg = TileConfig()
     PATHS.coords.mkdir(parents=True, exist_ok=True)
-    slides = sorted(PATHS.images.glob("*.tiff"))[: args.limit]
+    slides = sorted(PATHS.images.glob("*.tiff"))
+    if args.ids:
+        wanted = {line.strip() for line in open(args.ids) if line.strip()}
+        slides = [p for p in slides if p.stem in wanted]
+        print(f"tiling {len(slides)} of the {len(wanted)} listed slides")
+    slides = slides[: args.limit]
     counts = []
     for path in tqdm(slides):
         out = PATHS.coords / f"{path.stem}.npy"

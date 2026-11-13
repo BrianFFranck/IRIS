@@ -35,7 +35,7 @@ class Paths:
 @dataclass
 class TileConfig:
     # PANDA .tiff files have 3 levels: 0 (full res, ~0.5 um/px), 1 (4x down), 2 (16x down).
-    level: int = 1
+    level: int = int(os.environ.get("IRIS_TILE_LEVEL", 1))   # 1 = ~5x on the laptop; IRIS_TILE_LEVEL=0 for ~20x (Kaggle)
     tile_size: int = 256          # pixels, at `level`
     mask_level: int = -1          # -1 = lowest-resolution level, used only for the tissue mask
     min_tissue: float = 0.25      # keep a tile if at least this fraction is tissue (0.5 missed thin cores)
