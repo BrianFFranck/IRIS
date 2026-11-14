@@ -1,13 +1,12 @@
-"""Kaggle full run: tile and featurise the 9,022 development slides at ~20x, one chunk at a time.
+"""Kaggle run: tile and featurise CHUNK 1 of the 9,022 development slides at ~20x.
 
-The held-out test slides are NOT in these lists: they are processed once, at the end,
-with the final pipeline.
+Chunks 2-4 and the 5x run have their own folders (kaggle/chunk2 ... kaggle/5x_all), one
+Kaggle notebook each, because Kaggle keeps only the output of a notebook's latest run.
+Do NOT push this folder again: a new version would replace chunk 1's features.
 
-For each chunk: set CHUNK below, then from the laptop
-  kaggle kernels push -p kaggle/full
-and when it has finished
-  kaggle kernels output imatlas/iris-20x-full -p data/kaggle_20x/chunk<CHUNK>
-(Kaggle only keeps the output of the latest version, so download before the next push.)
+The held-out test slides are in none of these lists: they are processed once, at the
+end, with the final pipeline. This folder also holds the slide lists (ids_chunk*.txt,
+ids_all.txt) that every run reads from GitHub.
 """
 import json
 import os

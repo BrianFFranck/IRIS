@@ -1,0 +1,15 @@
+{
+  "id": "imatlas/iris-20x-chunk4",
+  "title": "iris-20x-chunk4",
+  "code_file": "featurise.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [
+    "prostate-cancer-grade-assessment"
+  ],
+  "kernel_sources": []
+}
