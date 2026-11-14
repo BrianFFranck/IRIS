@@ -16,7 +16,7 @@ from iris.data.tissue import tissue_mask
 from iris.metrics import gg1_vs_gg2, qwk
 from iris.runlog import is_clear_gain, previous_best
 from iris.models import GatedAttentionMIL, MeanMaxPoolMIL
-from iris.train import train_fold
+from iris.train import boundary_penalty, train_fold
 
 D = 1024
 
@@ -116,4 +116,11 @@ def test_new_best_needs_same_slides_and_more_than_noise():
     assert previous_best(log, 1500) is None                       # other slide count: nothing to compare
     assert not is_clear_gain({"mean": 0.71, "std": 0.03}, best)     # +0.02: noise
     assert is_clear_gain({"mean": 0.74, "std": 0.03}, best)         # +0.05: real
+
+
+def test_boundary_penalty_only_at_the_gg1_gg2_boundary():
+    logits = torch.log(torch.tensor([[0.05, 0.50, 0.30, 0.05, 0.05, 0.05]]))
+    assert boundary_penalty(logits, torch.tensor([2])).item() == pytest.approx(0.50)   # true GG2: mass on GG1
+    assert boundary_penalty(logits, torch.tensor([1])).item() == pytest.approx(0.30)   # true GG1: mass on GG2
+    assert boundary_penalty(logits, torch.tensor([4])).item() == 0                     # elsewhere: no penalty
 

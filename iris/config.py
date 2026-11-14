@@ -54,6 +54,7 @@ class TrainConfig:
     test_frac: float = 0.15       # share of slides held out as the final test set
     seed: int = 42
     class_weights: bool = False   # weight the loss so rarer grades cost more (see train.py)
+    boundary_weight: float = 0.0  # extra loss on probability across the GG1/GG2 boundary (0 = off; the concept doc says 3)
 
 
 PATHS = Paths()

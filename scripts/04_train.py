@@ -38,11 +38,15 @@ def main():
     ap.add_argument("--no-log", action="store_true", help="don't write this run to experiments.md or the profile")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--class-weights", action="store_true", help="weight the loss so rarer grades cost more")
+    ap.add_argument("--boundary-weight", type=float, default=0.0, help="extra loss for probability across the GG1/GG2 boundary, e.g. 3")
     args = ap.parse_args()
 
     cfg = TrainConfig()
     if args.epochs:
         cfg.epochs = args.epochs
+    if args.boundary_weight:
+        cfg.boundary_weight = args.boundary_weight
+        args.settings = ", ".join(x for x in [f"boundary-weighted loss (x{args.boundary_weight:g})", args.settings] if x)
     if args.class_weights:
         cfg.class_weights = True
         args.settings = ", ".join(x for x in ["class-weighted CE", args.settings] if x)

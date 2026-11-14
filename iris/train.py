@@ -22,7 +22,17 @@ def seed_everything(seed: int):
     torch.manual_seed(seed)
 
 
-def run_epoch(model, loader, loss_fn, optimizer=None, device="cpu"):
+def boundary_penalty(logits, label):
+    """Probability the model puts on the wrong side of the GG1/GG2 boundary."""
+    probs = torch.softmax(logits, dim=-1)[0]
+    if label.item() == 1:
+        return probs[2]
+    if label.item() == 2:
+        return probs[1]
+    return probs.sum() * 0
+
+
+def run_epoch(model, loader, loss_fn, optimizer=None, device="cpu", boundary_weight=0.0):
     train = optimizer is not None
     model.train(train)
     losses, y_true, y_pred = [], [], []
@@ -31,6 +41,8 @@ def run_epoch(model, loader, loss_fn, optimizer=None, device="cpu"):
         with torch.set_grad_enabled(train):
             out = model(feats)
             loss = loss_fn(out["logits"], label)
+            loss = loss + boundary_weight * boundary_penalty(out["logits"], label)
+            
             if train:
                 optimizer.zero_grad()
                 loss.backward()
@@ -63,8 +75,8 @@ def train_fold(model, train_ds, val_ds, cfg: TrainConfig, out_dir: Path, device=
 
     best, history = -1.0, []
     for epoch in range(cfg.epochs):
-        tr_loss, tr_qwk, *_ = run_epoch(model, train_dl, loss_fn, optimizer, device)
-        va_loss, va_qwk, yt, yp = run_epoch(model, val_dl, loss_fn, None, device)
+        tr_loss, tr_qwk, *_ = run_epoch(model, train_dl, loss_fn, optimizer, device, cfg.boundary_weight)
+        va_loss, va_qwk, yt, yp = run_epoch(model, val_dl, loss_fn, None, device, cfg.boundary_weight)
         scheduler.step()
         history.append(dict(epoch=epoch, tr_loss=tr_loss, tr_qwk=tr_qwk, va_loss=va_loss, va_qwk=va_qwk))
         print(f"ep {epoch:02d} | train loss {tr_loss:.3f} qwk {tr_qwk:.3f} | val loss {va_loss:.3f} qwk {va_qwk:.3f}")
