@@ -10,6 +10,7 @@ import argparse
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 from pathlib import Path
 
@@ -18,6 +19,7 @@ import pandas as pd
 from iris.config import PATHS
 
 COMP = "prostate-cancer-grade-assessment"
+PAUSE = 2   # seconds between files
 
 # Use the kaggle CLI from the same environment as this Python, so the script
 # works even when the venv is not activated (e.g. `.venv/bin/python scripts/...`).
@@ -32,8 +34,22 @@ def kaggle_get(file: str):
     (e.g. train_images/<id>.tiff). The kaggle CLI recreates that sub-folder
     itself and often delivers the file zipped, so unzip whatever arrives."""
     PATHS.panda.mkdir(parents=True, exist_ok=True)
-    subprocess.run([KAGGLE, "competitions", "download", "-c", COMP, "-f", file, "-p", str(PATHS.panda), "-q"], check=True)
+    cmd = [KAGGLE, "competitions", "download", "-c", COMP, "-f", file, "-p", str(PATHS.panda), "-q"]
+    # Kaggle limits how many files one account may request in a while ("429 Too Many
+    # Requests"). Instead of failing, wait longer and longer and try the same file again.
+    wait = 60
+    for attempt in range(8):
+        if subprocess.run(cmd).returncode == 0:
+            break
+        for partial in PATHS.panda.rglob("*.kaggle-partial"):
+            partial.unlink()
+        print(f"  Kaggle refused {file}; waiting {wait // 60} min before trying again", flush=True)
+        time.sleep(wait)
+        wait = min(wait * 2, 30 * 60)
+    else:
+        sys.exit(f"gave up on {file} after 8 tries; run the same command later to continue")
     unzip_all()
+    time.sleep(PAUSE)   # be gentle: a short pause between files avoids hitting the limit
 
 
 def unzip_all():

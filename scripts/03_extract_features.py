@@ -11,6 +11,7 @@ import argparse
 import numpy as np
 import torch
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 from iris.config import PATHS, TileConfig
 from iris.data.tiling import open_slide, read_tile
@@ -22,12 +23,15 @@ def main():
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--workers", type=int, default=4, help="tiles read at the same time")
     args = ap.parse_args()
 
     cfg = TileConfig()
     model, tf = build_extractor(args.device)
     PATHS.features.mkdir(parents=True, exist_ok=True)
     torch.set_num_threads(max(1, torch.get_num_threads()))
+
+    pool = ThreadPoolExecutor(args.workers)
 
     for cpath in tqdm(sorted(PATHS.coords.glob("*.npy"))[: args.limit]):
         out = PATHS.features / f"{cpath.stem}.pt"
@@ -39,7 +43,7 @@ def main():
         slide = open_slide(PATHS.images / f"{cpath.stem}.tiff")
         feats = []
         for i in range(0, len(coords), args.batch):
-            batch = torch.stack([tf(read_tile(slide, xy, cfg)) for xy in coords[i : i + args.batch]])
+            batch = torch.stack(list(pool.map(lambda xy: tf(read_tile(slide, xy, cfg)), coords[i : i + args.batch])))
             feats.append(model(batch.to(args.device)).cpu().half())   # fp16 halves disk use
         torch.save({"features": torch.cat(feats), "coords": torch.from_numpy(coords)}, out)
 
