@@ -28,6 +28,12 @@ One row per run. Add new runs at the **top** of each table. Write down what you 
 | 2026-11-10 | Tissue mask: ignore pen ink, cap Otsu threshold; `min_tissue` 0.5 → 0.25 | Tiles per slide (20 slides): min 2 → 17, median 27 → 45 | Pen ink made Otsu discard pale tissue: slide `1364c10e` (ISUP 5) went from 2 tiles to 18. |
 | 2026-11-10 | Downloaded 299 slides + 296 label masks | 9.8 GB + 1.1 GB | 3 slides have no mask on Kaggle. Stratified by lab and grade, seed 42. |
 
+## Decision rules (fixed before seeing the results)
+
+| Date fixed | Comparison | Rule |
+|---|---|---|
+| 2026-11-14 | 20× vs 5×, gated attention MIL, plain cross-entropy, same 9,022 development slides and same 5 folds, both trained on Kaggle's GPU | **20× counts as better if it beats 5× by at least 0.02 QWK in at least 4 of the 5 folds, and GG2-called-GG2 goes up.** Folds are compared pairwise (same slides). A gap under 0.02 in a fold is a tie: in a fold of about 1,800 slides, a handful of slides flipping moves QWK by about 0.01. Written down before any of the two runs had finished. |
+
 ## Ideas to try
 
 - [x] Gated attention MIL (`abmil.py`): does it start recognising GG2? Yes, a start: 19 of 125, up from 1 (2026-11-11)
