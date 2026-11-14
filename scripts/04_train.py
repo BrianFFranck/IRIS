@@ -14,6 +14,8 @@ with --folds are never logged. Use --no-log to skip logging altogether.
 import argparse
 from datetime import datetime
 
+import torch
+
 import numpy as np
 import pandas as pd
 
@@ -34,6 +36,7 @@ def main():
     ap.add_argument("--note", default="", help="your finding for experiments.md (default: written from the numbers)")
     ap.add_argument("--settings", default="", help="extra settings to record, e.g. 'boundary-weighted loss'")
     ap.add_argument("--no-log", action="store_true", help="don't write this run to experiments.md or the profile")
+    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--class-weights", action="store_true", help="weight the loss so rarer grades cost more")
     args = ap.parse_args()
 
@@ -63,7 +66,7 @@ def main():
         print(f"\n=== fold {fold}: {len(train_ds)} train / {len(val_ds)} val slides")
         model = MODELS[args.model](feat_dim=cfg.feat_dim, hidden_dim=cfg.hidden_dim,
                                    n_classes=cfg.n_classes, dropout=cfg.dropout)
-        scores.append(train_fold(model, train_ds, val_ds, cfg, run_dir / f"fold{fold}"))
+        scores.append(train_fold(model, train_ds, val_ds, cfg, run_dir / f"fold{fold}", device=args.device))
 
     print(f"\n{args.model}: val QWK per fold {np.round(scores, 3).tolist()}  mean {np.mean(scores):.3f} +/- {np.std(scores):.3f}")
     print(f"saved to {run_dir}")

@@ -36,11 +36,15 @@ def kaggle_get(file: str):
     PATHS.panda.mkdir(parents=True, exist_ok=True)
     cmd = [KAGGLE, "competitions", "download", "-c", COMP, "-f", file, "-p", str(PATHS.panda), "-q"]
     # Kaggle limits how many files one account may request in a while ("429 Too Many
-    # Requests"). Instead of failing, wait longer and longer and try the same file again.
+    # Requests"), and a download sometimes freezes. Instead of failing or hanging, wait
+    # longer and longer and try the same file again.
     wait = 60
     for attempt in range(8):
-        if subprocess.run(cmd).returncode == 0:
-            break
+        try:
+            if subprocess.run(cmd, timeout=15 * 60).returncode == 0:
+                break
+        except subprocess.TimeoutExpired:   # a download can freeze without failing: give up on it and retry
+            pass
         for partial in PATHS.panda.rglob("*.kaggle-partial"):
             partial.unlink()
         print(f"  Kaggle refused {file}; waiting {wait // 60} min before trying again", flush=True)

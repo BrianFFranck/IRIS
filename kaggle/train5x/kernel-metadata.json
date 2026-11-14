@@ -1,0 +1,15 @@
+{
+  "id": "imatlas/iris-train-5x",
+  "title": "iris-train-5x",
+  "code_file": "train.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [
+    "imatlas/iris-5x-all"
+  ]
+}

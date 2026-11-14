@@ -56,7 +56,7 @@ def train_fold(model, train_ds, val_ds, cfg: TrainConfig, out_dir: Path, device=
         counts = np.bincount(train_ds.df.isup_grade, minlength=cfg.n_classes)
         weight = torch.tensor(counts.sum() / (cfg.n_classes * counts),                              dtype=torch.float32)
         
-    loss_fn = nn.CrossEntropyLoss(weight=weight)
+    loss_fn = nn.CrossEntropyLoss(weight=weight.to(device) if weight is not None else None)
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.epochs)

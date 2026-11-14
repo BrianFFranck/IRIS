@@ -1,0 +1,18 @@
+{
+  "id": "imatlas/iris-train-20x",
+  "title": "iris-train-20x",
+  "code_file": "train.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [
+    "imatlas/iris-20x-full",
+    "imatlas/iris-20x-chunk2",
+    "imatlas/iris-20x-chunk3",
+    "imatlas/iris-20x-chunk4"
+  ]
+}
