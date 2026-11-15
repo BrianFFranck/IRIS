@@ -7,6 +7,7 @@ __pycache__/
 # never commit data or model weights
 /data/
 /runs/
+/runs_kaggle/
 *.tiff
 *.pt
 *.h5
