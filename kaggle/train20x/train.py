@@ -16,7 +16,7 @@ import sys
 import time
 
 MODEL = "abmil"
-EXTRA = []                    # e.g. ["--class-weights"]; keep empty for the 5x vs 20x comparison
+EXTRA = ["--boundary-weight", "3"]   # boundary loss run; [] = plain 20x (the 5x vs 20x comparison)
 
 REPO = "https://github.com/BrianFFranck/IRIS.git"
 CODE = "/tmp/IRIS"

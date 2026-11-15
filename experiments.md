@@ -34,6 +34,7 @@ One row per run. Add new runs at the **top** of each table. Write down what you 
 
 | Date fixed | Comparison | Rule |
 |---|---|---|
+| 2026-11-15 | Boundary-weighted loss (weight 3) vs plain cross-entropy, both gated attention MIL at 20×, same 9,022 development slides and same 5 folds, Kaggle GPU (baseline: `20261115-1401_abmil`) | **The boundary loss counts as better if (1) GG2-called-GG2 goes up in at least 4 of the 5 folds, (2) in total over the folds, GG1-called-GG2 goes up by less than half as much as GG2-called-GG2 does, and (3) QWK does not drop by more than 0.02 in any fold.** Rule 2 is there because of fold 3 in the 20× run: catching more GG2 only counts if the model is telling GG1 and GG2 apart, not just answering GG2 more often. Example: +40 GG2 caught with +15 GG1 wrongly called GG2 passes; +40 with +25 does not. The weight (3) was chosen before any run. Written down before the run started. |
 | 2026-11-14 | 20× vs 5×, gated attention MIL, plain cross-entropy, same 9,022 development slides and same 5 folds, both trained on Kaggle's GPU | **20× counts as better if it beats 5× by at least 0.02 QWK in at least 4 of the 5 folds, and GG2-called-GG2 goes up.** Folds are compared pairwise (same slides). A gap under 0.02 in a fold is a tie: in a fold of about 1,800 slides, a handful of slides flipping moves QWK by about 0.01. Written down before any of the two runs had finished. |
 
 ## Ideas to try
