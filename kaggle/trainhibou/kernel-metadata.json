@@ -1,0 +1,16 @@
+{
+  "id": "imatlas/iris-train-hibou",
+  "title": "iris-train-hibou",
+  "code_file": "train.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [
+    "imatlas/iris-hibou-part1",
+    "imatlas/iris-hibou-part2"
+  ]
+}

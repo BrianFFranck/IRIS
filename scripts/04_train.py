@@ -61,6 +61,9 @@ def main():
     df = pd.read_csv(PATHS.splits)
     test_ids = set(pd.read_csv(PATHS.test_split).image_id)
     assert not test_ids & set(df.image_id), "test slides found in the development split"
+    # the feature size depends on the encoder (1024 ResNet-50, 768 Hibou-B, 3072 Midnight): read it from the files
+    cfg.feat_dim = int(torch.load(next(PATHS.features.glob("*.pt")), weights_only=True)["features"].shape[1])
+    print(f"feature size per tile: {cfg.feat_dim}")
 
     run_dir = PATHS.runs / f"{datetime.now():%Y%m%d-%H%M}_{args.model}"
     scores = []
