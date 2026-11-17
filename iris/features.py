@@ -46,10 +46,10 @@ def midnight_vector(out):
 class HFEncoder(nn.Module):
     """A pathology ViT from Hugging Face; `to_vector` turns its outputs into one vector per tile."""
 
-    def __init__(self, name, to_vector, **kwargs):
+    def __init__(self, name, to_vector, model_class="AutoModel"):
         super().__init__()
-        from transformers import AutoModel     # only needed for these encoders
-        self.model = AutoModel.from_pretrained(name, **kwargs)
+        import transformers                    # only needed for these encoders
+        self.model = getattr(transformers, model_class).from_pretrained(name)
         self.to_vector = to_vector
 
     @torch.no_grad()
@@ -65,10 +65,12 @@ def build_extractor(device: str = "cpu", encoder: str = "resnet50") -> tuple[nn.
         model = ResNet50Trunc()
         mean, std = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)     # ImageNet colours
     elif encoder == "hibou-b":
-        from transformers import AutoImageProcessor
-        proc = AutoImageProcessor.from_pretrained("histai/hibou-b", trust_remote_code=True)
-        model = HFEncoder("histai/hibou-b", hibou_vector, trust_remote_code=True)
-        mean, std = tuple(proc.image_mean), tuple(proc.image_std)    # Hibou's own colour statistics
+        # Hibou-B ships its own model code, written for transformers 4 (it breaks on 5).
+        # It is a standard DINOv2 with 4 register tokens, so the class built into
+        # transformers loads all its weights; checked 2026-11-17: same output as
+        # Hibou's own code under transformers 4.57 (max difference 3e-6).
+        model = HFEncoder("histai/hibou-b", hibou_vector, model_class="Dinov2WithRegistersModel")
+        mean, std = (0.7068, 0.5755, 0.722), (0.195, 0.2316, 0.1816)  # Hibou's preprocessor_config.json
     elif encoder == "midnight":
         model = HFEncoder("kaiko-ai/midnight", midnight_vector)
         mean, std = (0.5, 0.5, 0.5), (0.5, 0.5, 0.5)                 # from Midnight's model card
