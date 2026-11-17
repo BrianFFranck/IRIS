@@ -23,7 +23,7 @@ from pathlib import Path
 REPO = "https://github.com/BrianFFranck/IRIS.git"
 CODE = "/tmp/IRIS"
 OUT = Path("/kaggle/working")
-ENCODERS = ["hibou-b", "midnight"]      # the small one first: quick to fail if access is missing
+ENCODERS = ["hibou-b"]   # v2: Hibou-B only (v1 measured Midnight: 40 s per 1,000 tiles on a T4, 296 MB per 100 slides)
 
 
 def run(*cmd, env=None, check=True):
