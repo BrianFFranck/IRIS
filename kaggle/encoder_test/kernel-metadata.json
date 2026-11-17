@@ -1,0 +1,13 @@
+{
+  "id": "imatlas/iris-encoder-test",
+  "title": "iris-encoder-test",
+  "code_file": "encoder_test.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": ["prostate-cancer-grade-assessment"],
+  "kernel_sources": []
+}
