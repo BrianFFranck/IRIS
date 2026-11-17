@@ -41,8 +41,12 @@ def kaggle_get(file: str):
     wait = 60
     for attempt in range(8):
         try:
-            if subprocess.run(cmd, timeout=15 * 60).returncode == 0:
+            result = subprocess.run(cmd, timeout=15 * 60, capture_output=True, text=True)
+            if result.returncode == 0:
                 break
+            if "404" in result.stdout + result.stderr:   # the file does not exist on Kaggle: retrying won't help
+                raise FileNotFoundError(file)
+            print(result.stdout + result.stderr, end="")  # any other error: show it, then wait and retry
         except subprocess.TimeoutExpired:   # a download can freeze without failing: give up on it and retry
             pass
         for partial in PATHS.panda.rglob("*.kaggle-partial"):
@@ -102,7 +106,8 @@ def download_masks():
         print(f"[{i}/{len(ids)}] {image_id}_mask")
         try:
             kaggle_get(f"train_label_masks/{image_id}_mask.tiff")
-        except subprocess.CalledProcessError:
+        except FileNotFoundError:   # raised by kaggle_get on a 404: this slide has no mask
+            print("  no mask on Kaggle, skipping")
             missing.append(image_id)
     if missing:
         print(f"{len(missing)} slides have no label mask on Kaggle: {missing}")
