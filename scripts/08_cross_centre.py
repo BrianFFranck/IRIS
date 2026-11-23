@@ -13,9 +13,16 @@ The two hospitals share no patients, so the cross-centre test has no patient lea
 Output: runs/<date>_crosscentre/ with one folder per (train centre, fold) and
 results.json (per-fold QWK, GG2 detection, paired bootstrap 95% CI of the difference).
 
+--norm centre: before training, rescale each centre's tile features to average 0 and spread 1,
+using the mean and standard deviation of every tile of that centre's development slides. No
+grade labels are used, only the features. Each slide is always rescaled with its own centre's
+numbers, so within and cross see exactly the same inputs; only the model changes.
+Question: is the gap between centres a simple shift of the features?
+
 Usage:
   python scripts/08_cross_centre.py              # all folds (about 1-2 h on the laptop CPU)
   python scripts/08_cross_centre.py --epochs 1 --folds 0    # quick test
+  python scripts/08_cross_centre.py --norm centre           # with per-centre feature rescaling
 """
 import argparse
 import json
@@ -46,6 +53,24 @@ def predict(model_path, ds, cfg, device):
     return list(map(int, yt)), list(map(int, yp))
 
 
+def centre_stats(df, features_dir):
+    """Mean and standard deviation of every feature, over all tiles of each centre's slides."""
+    stats = {}
+    for centre in CENTRES:
+        total, total_sq, n = 0.0, 0.0, 0
+        for image_id in df[df.data_provider == centre].image_id:
+            path = features_dir / f"{image_id}.pt"
+            if not path.exists():
+                continue
+            f = torch.load(path, weights_only=True)["features"].double()
+            total, total_sq, n = total + f.sum(0), total_sq + (f ** 2).sum(0), n + len(f)
+        mean = total / n
+        std = (total_sq / n - mean ** 2).clamp_min(1e-12).sqrt()
+        stats[centre] = (mean.float(), std.float())
+        print(f"{centre}: {n} tiles, mean of means {mean.mean():.3f}, mean of stds {std.mean():.3f}")
+    return stats
+
+
 def boundary_counts(yt, yp):
     yt, yp = np.array(yt), np.array(yp)
     return {"gg2_total": int((yt == 2).sum()), "gg2_called_gg2": int(((yt == 2) & (yp == 2)).sum()),
@@ -68,6 +93,7 @@ def main():
     ap.add_argument("--folds", type=int, nargs="*", default=None)
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--norm", choices=["none", "centre"], default="none")
     args = ap.parse_args()
 
     cfg = TrainConfig()
@@ -76,27 +102,29 @@ def main():
     cfg.feat_dim = int(torch.load(next(PATHS.features.glob("*.pt")), weights_only=True)["features"].shape[1])
     df = pd.read_csv(PATHS.splits)                      # development slides only: the test set stays locked
     folds = args.folds if args.folds is not None else range(cfg.n_folds)
-    run_dir = PATHS.runs / f"{datetime.now():%Y%m%d-%H%M}_crosscentre"
+    suffix = "_norm" if args.norm == "centre" else ""
+    run_dir = PATHS.runs / f"{datetime.now():%Y%m%d-%H%M}_crosscentre{suffix}"
+    norm = centre_stats(df, PATHS.features) if args.norm == "centre" else None
 
     # 1) train one model per (centre, fold), on that centre only
     for centre in CENTRES:
         own = df[df.data_provider == centre]
         for k in folds:
             out = run_dir / f"train_{centre}" / f"fold{k}"
-            train_ds = BagDataset(own[own.fold != k], PATHS.features)
-            val_ds = BagDataset(own[own.fold == k], PATHS.features)
+            train_ds = BagDataset(own[own.fold != k], PATHS.features, norm=norm)
+            val_ds = BagDataset(own[own.fold == k], PATHS.features, norm=norm)
             print(f"\n=== train on {centre}, fold {k}: {len(train_ds)} train / {len(val_ds)} val slides")
             model = MODELS["abmil"](feat_dim=cfg.feat_dim, hidden_dim=cfg.hidden_dim,
                                     n_classes=cfg.n_classes, dropout=cfg.dropout)
             train_fold(model, train_ds, val_ds, cfg, out, device=args.device)
 
     # 2) for each test centre and fold: within vs cross, on the same slides
-    results = {"feat_dim": cfg.feat_dim, "epochs": cfg.epochs, "folds": {}}
+    results = {"feat_dim": cfg.feat_dim, "epochs": cfg.epochs, "norm": args.norm, "folds": {}}
     for test_c in CENTRES:
         other = [c for c in CENTRES if c != test_c][0]
         pooled = {"yt": [], "within": [], "cross": []}
         for k in folds:
-            ds = BagDataset(df[(df.data_provider == test_c) & (df.fold == k)], PATHS.features)
+            ds = BagDataset(df[(df.data_provider == test_c) & (df.fold == k)], PATHS.features, norm=norm)
             yt, yp_w = predict(run_dir / f"train_{test_c}" / f"fold{k}" / "best.pt", ds, cfg, args.device)
             yt2, yp_c = predict(run_dir / f"train_{other}" / f"fold{k}" / "best.pt", ds, cfg, args.device)
             assert yt == yt2
