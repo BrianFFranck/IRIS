@@ -7,6 +7,7 @@ Usage:
   python scripts/03_extract_features.py              # CPU (slow, fine for ~300 slides)
   python scripts/03_extract_features.py --device cuda  # on Kaggle / Colab
   python scripts/03_extract_features.py --encoder midnight --out data/features_midnight
+  python scripts/03_extract_features.py --stain macenko    # repaint every tile to the same H&E colours first
 """
 import argparse
 from pathlib import Path
@@ -17,6 +18,7 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
 from iris.config import PATHS, TileConfig
+from iris.data import stain
 from iris.data.tiling import open_slide, read_tile
 from iris.features import FEAT_DIMS, build_extractor
 
@@ -29,6 +31,8 @@ def main():
     ap.add_argument("--workers", type=int, default=4, help="tiles read at the same time")
     ap.add_argument("--encoder", default="resnet50", choices=list(FEAT_DIMS))
     ap.add_argument("--out", type=Path, default=PATHS.features, help="folder for the feature bags")
+    ap.add_argument("--stain", choices=["none", "macenko"], default="none",
+                    help="macenko: stain-normalise every tile first (see iris/data/stain.py)")
     args = ap.parse_args()
 
     cfg = TileConfig()
@@ -46,11 +50,18 @@ def main():
         if len(coords) == 0:
             continue
         slide = open_slide(PATHS.images / f"{cpath.stem}.tiff")
+        bag = {}
+        if args.stain == "macenko":
+            he, max_c, bag["stain_reference_colours"] = stain.fit_slide(slide, coords, cfg)
+            load = lambda xy: tf(stain.normalize(read_tile(slide, xy, cfg), he, max_c))
+        else:
+            load = lambda xy: tf(read_tile(slide, xy, cfg))
         feats = []
         for i in range(0, len(coords), args.batch):
-            batch = torch.stack(list(pool.map(lambda xy: tf(read_tile(slide, xy, cfg)), coords[i : i + args.batch])))
+            batch = torch.stack(list(pool.map(load, coords[i : i + args.batch])))
             feats.append(model(batch.to(args.device)).cpu().half())   # fp16 halves disk use
-        torch.save({"features": torch.cat(feats), "coords": torch.from_numpy(coords)}, out)
+        bag.update(features=torch.cat(feats), coords=torch.from_numpy(coords))
+        torch.save(bag, out)
 
     # TODO (speed): reading tiles is single-threaded here. If it's the bottleneck
     # (check with htop: one core busy, others idle), wrap the tile reading in a
