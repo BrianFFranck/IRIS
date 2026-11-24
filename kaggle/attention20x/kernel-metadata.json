@@ -1,0 +1,20 @@
+{
+  "id": "imatlas/iris-attention-20x",
+  "title": "iris-attention-20x",
+  "code_file": "run.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": true,
+  "dataset_sources": ["imatlas/iris-models"],
+  "competition_sources": ["prostate-cancer-grade-assessment"],
+  "kernel_sources": [
+    "imatlas/iris-20x-full",
+    "imatlas/iris-20x-chunk2",
+    "imatlas/iris-20x-chunk3",
+    "imatlas/iris-20x-chunk4",
+    "imatlas/iris-hibou-part1",
+    "imatlas/iris-hibou-part2"
+  ]
+}
