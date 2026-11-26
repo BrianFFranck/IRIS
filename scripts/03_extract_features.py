@@ -8,6 +8,9 @@ Usage:
   python scripts/03_extract_features.py --device cuda  # on Kaggle / Colab
   python scripts/03_extract_features.py --encoder midnight --out data/features_midnight
   python scripts/03_extract_features.py --stain macenko    # repaint every tile to the same H&E colours first
+  python scripts/03_extract_features.py --stain jitter --out data/features_aug
+        # stain augmentation: give each slide a random new colouring (same for all its tiles);
+        # training then mixes these bags with the original ones (see --aug-features in 04_train.py)
 """
 import argparse
 from pathlib import Path
@@ -31,8 +34,9 @@ def main():
     ap.add_argument("--workers", type=int, default=4, help="tiles read at the same time")
     ap.add_argument("--encoder", default="resnet50", choices=list(FEAT_DIMS))
     ap.add_argument("--out", type=Path, default=PATHS.features, help="folder for the feature bags")
-    ap.add_argument("--stain", choices=["none", "macenko"], default="none",
-                    help="macenko: stain-normalise every tile first (see iris/data/stain.py)")
+    ap.add_argument("--stain", choices=["none", "macenko", "jitter"], default="none",
+                    help="macenko: stain-normalise every tile first; jitter: random colouring per slide (see iris/data/stain.py)")
+    ap.add_argument("--aug-seed", type=int, default=0, help="with --stain jitter: which random colourings")
     args = ap.parse_args()
 
     cfg = TileConfig()
@@ -54,6 +58,12 @@ def main():
         if args.stain == "macenko":
             he, max_c, bag["stain_reference_colours"] = stain.fit_slide(slide, coords, cfg)
             load = lambda xy: tf(stain.normalize(read_tile(slide, xy, cfg), he, max_c))
+        elif args.stain == "jitter":
+            # the colouring depends only on the slide and --aug-seed, so a rerun gives the same one
+            rng = np.random.default_rng([args.aug_seed, int(cpath.stem[:12], 16)])
+            factors = stain.random_factors(rng)
+            bag["stain_factors"] = torch.from_numpy(factors)
+            load = lambda xy: tf(stain.jitter(read_tile(slide, xy, cfg), factors))
         else:
             load = lambda xy: tf(read_tile(slide, xy, cfg))
         feats = []

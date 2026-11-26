@@ -12,6 +12,7 @@ with --folds are never logged. Use --no-log to skip logging altogether.
   python scripts/04_train.py --model abmil --note "what you learned from this run"
 """
 import argparse
+from pathlib import Path
 from datetime import datetime
 
 import torch
@@ -38,6 +39,9 @@ def main():
     ap.add_argument("--no-log", action="store_true", help="don't write this run to experiments.md or the profile")
     ap.add_argument("--seed", type=int, default=None,
                     help="training seed (model start weights, slide order, dropout); the folds stay the same. Default: 42 as always")
+    ap.add_argument("--aug-features", type=Path, default=None,
+                    help="stain augmentation: folder of recoloured bags (03_extract_features.py --stain jitter); training only")
+    ap.add_argument("--aug-p", type=float, default=0.5, help="chance that a training slide is read recoloured")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--class-weights", action="store_true", help="weight the loss so rarer grades cost more")
     ap.add_argument("--boundary-weight", type=float, default=0.0, help="extra loss for probability across the GG1/GG2 boundary, e.g. 3")
@@ -53,6 +57,8 @@ def main():
         assert PATHS.splits.exists(), "--seed changes training only: the frozen splits must already exist"
         cfg.seed = args.seed
         args.settings = ", ".join(x for x in [f"training seed {args.seed}", args.settings] if x)
+    if args.aug_features:
+        args.settings = ", ".join(x for x in [f"stain augmentation (p={args.aug_p:g})", args.settings] if x)
     if args.class_weights:
         cfg.class_weights = True
         args.settings = ", ".join(x for x in ["class-weighted CE", args.settings] if x)
@@ -74,7 +80,8 @@ def main():
     run_dir = PATHS.runs / f"{datetime.now():%Y%m%d-%H%M}_{args.model}"
     scores = []
     for fold in args.folds if args.folds is not None else range(cfg.n_folds):
-        train_ds = BagDataset(df[df.fold != fold], PATHS.features, max_tiles=args.max_tiles)
+        train_ds = BagDataset(df[df.fold != fold], PATHS.features, max_tiles=args.max_tiles,
+                              aug_dir=args.aug_features, aug_p=args.aug_p)
         val_ds = BagDataset(df[df.fold == fold], PATHS.features)
         print(f"\n=== fold {fold}: {len(train_ds)} train / {len(val_ds)} val slides")
         if args.seed is not None:

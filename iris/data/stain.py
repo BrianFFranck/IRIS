@@ -92,3 +92,53 @@ def fit_slide(slide, coords, cfg, n_tiles=16):
     od = od[(od > BETA).all(axis=1)]
     conc = np.linalg.lstsq(HE_REF, od.T, rcond=None)[0]
     return HE_REF, np.percentile(conc, 99, axis=1), True
+
+
+# ---------------------------------------------------------------------------------------------
+# Stain AUGMENTATION (after Tellez et al. 2018, "HED jitter"): instead of repainting every slide
+# to the same colours, give each slide a random but realistic new colouring, so the model learns
+# that the exact shade does not matter, while each slide's own shading is kept, not erased.
+#
+#   1. RGB -> optical density -> amounts of haematoxylin, eosin and a third "rest" channel
+#      (fixed stain colours of Ruifrok & Johnston 2001, the same for every slide)
+#   2. the haematoxylin and eosin amounts are multiplied by random factors
+#   3. back to RGB
+# Only multiplying (no shift) keeps empty glass white. The same factors are used for every tile
+# of a slide, so a whole slide looks as if it had been stained in another lab.
+#
+# How big: measured on 150 local slides per centre (2026-11-26), the median Karolinska slide has
+# 1.15x the haematoxylin and 2.0x the eosin of the median Radboud slide, and within Radboud the
+# 10th-90th percentile spread is about 0.8x (H) and 0.7x (E) of the median. So the factors go up
+# to 2x and down to 1/2 for eosin, and 1.4x and 1/1.4 for haematoxylin, spread evenly on a log
+# scale (doubling is as likely as halving).
+# ---------------------------------------------------------------------------------------------
+RGB_FROM_HED = np.array([[0.65, 0.70, 0.29],     # haematoxylin
+                         [0.07, 0.99, 0.11],     # eosin
+                         [0.27, 0.57, 0.78]])    # rest (DAB in the original paper)
+RGB_FROM_HED = RGB_FROM_HED / np.linalg.norm(RGB_FROM_HED, axis=1, keepdims=True)
+HED_FROM_RGB = np.linalg.inv(RGB_FROM_HED)
+MAX_FACTOR = (1.4, 2.0)                          # haematoxylin, eosin
+
+
+def hed_amounts(rgb):
+    """Amounts of haematoxylin, eosin and rest per pixel, shape (pixels, 3)."""
+    return optical_density(rgb) @ HED_FROM_RGB
+
+
+def random_factors(rng, max_factor=MAX_FACTOR):
+    """One slide's random colouring: a factor per stain, log-uniform in [1/max, max]; rest = 1."""
+    f = np.ones(3)
+    f[:2] = np.exp(rng.uniform(-np.log(max_factor), np.log(max_factor)))
+    return f
+
+
+def jitter(tile, factors):
+    """Recolour one RGB tile (H, W, 3): stain amounts x factors, then back to RGB.
+
+    One 3x3 matrix does it all (about 1 ms per 256 x 256 tile). factors (1, 1, 1) = no change.
+    """
+    h, w, _ = tile.shape
+    m = ((HED_FROM_RGB * factors) @ RGB_FROM_HED).astype(np.float32)
+    od = -np.log((tile.reshape(-1, 3).astype(np.float32) + 1) / IO)
+    out = IO * np.exp(-(od @ m)) - 1                                   # -1 undoes the +1 above
+    return np.clip(np.rint(out), 0, 255).reshape(h, w, 3).astype(np.uint8)

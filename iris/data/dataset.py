@@ -13,20 +13,30 @@ from torch.utils.data import Dataset
 
 class BagDataset(Dataset):
     def __init__(self, df: pd.DataFrame, features_dir: Path, max_tiles: int | None = None,
-                 norm: dict | None = None):
+                 norm: dict | None = None, aug_dir: Path | None = None, aug_p: float = 0.5):
         # drop slides whose features were not extracted (yet)
         have = {p.stem for p in Path(features_dir).glob("*.pt")}
         self.df = df[df["image_id"].isin(have)].reset_index(drop=True)
         self.features_dir = Path(features_dir)
         self.max_tiles = max_tiles
         self.norm = norm          # optional {centre: (mean, std)}, see scripts/08_cross_centre.py
+        # optional stain augmentation (TRAINING sets only): with probability aug_p a slide is read
+        # from aug_dir, the same tiles with a random colouring (03_extract_features.py --stain jitter)
+        self.aug_dir = Path(aug_dir) if aug_dir else None
+        self.aug_p = aug_p
+        if self.aug_dir:
+            missing = set(self.df.image_id) - {p.stem for p in self.aug_dir.glob("*.pt")}
+            assert not missing, f"{len(missing)} slides have no augmented bag in {aug_dir}"
 
     def __len__(self) -> int:
         return len(self.df)
 
     def __getitem__(self, i):
         row = self.df.iloc[i]
-        bag = torch.load(self.features_dir / f"{row.image_id}.pt", weights_only=True)
+        folder = self.features_dir
+        if self.aug_dir and torch.rand(1).item() < self.aug_p:
+            folder = self.aug_dir
+        bag = torch.load(folder / f"{row.image_id}.pt", weights_only=True)
         feats = bag["features"].float()          # (N, D)
         if self.norm is not None:
             mean, std = self.norm[row.data_provider]   # each slide uses its OWN centre's numbers

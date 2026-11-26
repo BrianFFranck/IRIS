@@ -23,10 +23,12 @@ Usage:
   python scripts/08_cross_centre.py              # all folds (about 1-2 h on the laptop CPU)
   python scripts/08_cross_centre.py --epochs 1 --folds 0    # quick test
   python scripts/08_cross_centre.py --norm centre           # with per-centre feature rescaling
+  python scripts/08_cross_centre.py --aug-features data/features_aug   # with stain augmentation (training slides only)
 """
 import argparse
 import json
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -94,6 +96,8 @@ def main():
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--norm", choices=["none", "centre"], default="none")
+    ap.add_argument("--aug-features", type=Path, default=None,
+                    help="stain augmentation: folder of recoloured bags; used for TRAINING slides only")
     args = ap.parse_args()
 
     cfg = TrainConfig()
@@ -102,7 +106,7 @@ def main():
     cfg.feat_dim = int(torch.load(next(PATHS.features.glob("*.pt")), weights_only=True)["features"].shape[1])
     df = pd.read_csv(PATHS.splits)                      # development slides only: the test set stays locked
     folds = args.folds if args.folds is not None else range(cfg.n_folds)
-    suffix = "_norm" if args.norm == "centre" else ""
+    suffix = ("_norm" if args.norm == "centre" else "") + ("_aug" if args.aug_features else "")
     run_dir = PATHS.runs / f"{datetime.now():%Y%m%d-%H%M}_crosscentre{suffix}"
     norm = centre_stats(df, PATHS.features) if args.norm == "centre" else None
 
@@ -111,7 +115,7 @@ def main():
         own = df[df.data_provider == centre]
         for k in folds:
             out = run_dir / f"train_{centre}" / f"fold{k}"
-            train_ds = BagDataset(own[own.fold != k], PATHS.features, norm=norm)
+            train_ds = BagDataset(own[own.fold != k], PATHS.features, norm=norm, aug_dir=args.aug_features)
             val_ds = BagDataset(own[own.fold == k], PATHS.features, norm=norm)
             print(f"\n=== train on {centre}, fold {k}: {len(train_ds)} train / {len(val_ds)} val slides")
             model = MODELS["abmil"](feat_dim=cfg.feat_dim, hidden_dim=cfg.hidden_dim,
@@ -119,7 +123,8 @@ def main():
             train_fold(model, train_ds, val_ds, cfg, out, device=args.device)
 
     # 2) for each test centre and fold: within vs cross, on the same slides
-    results = {"feat_dim": cfg.feat_dim, "epochs": cfg.epochs, "norm": args.norm, "folds": {}}
+    results = {"feat_dim": cfg.feat_dim, "epochs": cfg.epochs, "norm": args.norm,
+               "stain_augmentation": bool(args.aug_features), "folds": {}}
     for test_c in CENTRES:
         other = [c for c in CENTRES if c != test_c][0]
         pooled = {"yt": [], "within": [], "cross": []}
