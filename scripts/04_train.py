@@ -36,6 +36,8 @@ def main():
     ap.add_argument("--note", default="", help="your finding for experiments.md (default: written from the numbers)")
     ap.add_argument("--settings", default="", help="extra settings to record, e.g. 'boundary-weighted loss'")
     ap.add_argument("--no-log", action="store_true", help="don't write this run to experiments.md or the profile")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="training seed (model start weights, slide order, dropout); the folds stay the same. Default: 42 as always")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--class-weights", action="store_true", help="weight the loss so rarer grades cost more")
     ap.add_argument("--boundary-weight", type=float, default=0.0, help="extra loss for probability across the GG1/GG2 boundary, e.g. 3")
@@ -47,6 +49,10 @@ def main():
     if args.boundary_weight:
         cfg.boundary_weight = args.boundary_weight
         args.settings = ", ".join(x for x in [f"boundary-weighted loss (x{args.boundary_weight:g})", args.settings] if x)
+    if args.seed is not None:
+        assert PATHS.splits.exists(), "--seed changes training only: the frozen splits must already exist"
+        cfg.seed = args.seed
+        args.settings = ", ".join(x for x in [f"training seed {args.seed}", args.settings] if x)
     if args.class_weights:
         cfg.class_weights = True
         args.settings = ", ".join(x for x in ["class-weighted CE", args.settings] if x)
@@ -71,6 +77,8 @@ def main():
         train_ds = BagDataset(df[df.fold != fold], PATHS.features, max_tiles=args.max_tiles)
         val_ds = BagDataset(df[df.fold == fold], PATHS.features)
         print(f"\n=== fold {fold}: {len(train_ds)} train / {len(val_ds)} val slides")
+        if args.seed is not None:
+            torch.manual_seed(cfg.seed + fold)    # new start weights too (default runs keep their old behaviour)
         model = MODELS[args.model](feat_dim=cfg.feat_dim, hidden_dim=cfg.hidden_dim,
                                    n_classes=cfg.n_classes, dropout=cfg.dropout)
         scores.append(train_fold(model, train_ds, val_ds, cfg, run_dir / f"fold{fold}", device=args.device))
