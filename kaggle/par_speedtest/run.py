@@ -10,16 +10,21 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 B = "https://ftp.ebi.ac.uk/biostudies/fire/S-BIAD/323/S-BIAD2323/Files/bia_prostate_wsi/component_A_grundium_svs/"
-SLIDES = ["c010a", "c011a", "c012a", "c013a", "c014a", "c015a"]
+SLIDES = ["c010a", "c010b", "c011a", "c011b", "c012a", "c012b"]   # names checked against kaggle/par/grundium_urls.txt
 
 
 def get(name):
     t = time.time()
     n = 0
-    with urllib.request.urlopen(B + f"{name}_grundium.svs", timeout=120) as r:
-        while chunk := r.read(1 << 22):
-            n += len(chunk)
-    return n, time.time() - t
+    try:
+        with urllib.request.urlopen(B + f"{name}_grundium.svs", timeout=120) as r:
+            while chunk := r.read(1 << 22):
+                n += len(chunk)
+    except OSError as e:
+        print(f"{name}: failed ({e})", flush=True)
+    sec = time.time() - t
+    print(f"{name}: {n / 1e6:.0f} MB in {sec:.0f} s = {n / 1e6 / max(sec, 1e-9):.1f} MB/s", flush=True)
+    return n, sec
 
 
 res = {}
