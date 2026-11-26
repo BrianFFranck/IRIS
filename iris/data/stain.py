@@ -73,18 +73,20 @@ def _cos(a, b):
     return float(a @ b / np.linalg.norm(a) / np.linalg.norm(b))
 
 
-def fit_slide(slide, coords, cfg, n_tiles=16):
+def fit_slide(slide, coords, cfg, n_tiles=16, reader=None):
     """fit() on up to n_tiles of the slide's own tiles (already tissue), spread over the slide.
 
     Pen ink is removed first (see tissue.py). Safeguard: on very pale slides Macenko cannot find
     the haematoxylin colour and returns a wrong one; if either colour is far from normal H&E
     (cosine below MIN_COS), the reference colours are kept and only the strengths are fitted.
     Returns (stain colours, strengths, True if the reference colours were used).
+    reader(xy) -> RGB tile replaces read_tile(slide, xy, cfg), e.g. MicronTiler.read for other datasets.
     """
     from iris.data.tiling import read_tile
     from iris.data.tissue import ink_mask
     pick = coords[np.linspace(0, len(coords) - 1, min(n_tiles, len(coords))).astype(int)]
-    px = np.concatenate([t[~ink_mask(t)] for t in (read_tile(slide, xy, cfg) for xy in pick)])
+    reader = reader or (lambda xy: read_tile(slide, xy, cfg))
+    px = np.concatenate([t[~ink_mask(t)] for t in (reader(xy) for xy in pick)])
     he, max_c = fit(px[:, None, :])
     if min(_cos(he[:, 0], HE_REF[:, 0]), _cos(he[:, 1], HE_REF[:, 1])) >= MIN_COS:
         return he, max_c, False
