@@ -170,6 +170,8 @@ model selection or any setting. Slides were downloaded, processed and deleted on
   cross-validation QWK is slightly optimistic. All comparisons share this bias, so differences
   between models are fair, but the absolute number must come from the locked test set (or from
   a fixed number of epochs / an inner validation split). Decide before unlocking the test set.
+  Measured 2026-11-26: best-epoch vs last-epoch validation QWK differ by 0.003 to 0.007 (Hibou-B
+  0.884 vs 0.877), so the bias is small and the comparisons hold.
 - **One training seed per experiment.** The seed check (2026-11-26) will show how much results
   move between identical trainings. [TBD]
 - **Patients.** Similarity is only a stand-in for patient identity.
