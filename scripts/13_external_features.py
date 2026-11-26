@@ -16,6 +16,10 @@ Usage:
   python scripts/13_external_features.py --slides a.svs b.svs --out data/external/par_grundium
   python scripts/13_external_features.py --list urls.txt --out ... --encoder hibou-b --device cuda
   python scripts/13_external_features.py ... --stain macenko        # stain-normalised version
+  python scripts/13_external_features.py ... --stain none macenko   # both from ONE download:
+        # writes <out>/original/ and <out>/macenko/
+  --prefetch 3       download the next 3 slides while the current one is processed
+  --hours 11         start no new slide after 11 h (Kaggle stops sessions at 12 h)
 """
 import argparse
 import shutil
@@ -55,7 +59,9 @@ def main():
     ap.add_argument("--list", type=Path, help="text file with one slide path or URL per line")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--encoder", default="hibou-b", choices=list(FEAT_DIMS))
-    ap.add_argument("--stain", choices=["none", "macenko"], default="none")
+    ap.add_argument("--stain", choices=["none", "macenko"], nargs="+", default=["none"])
+    ap.add_argument("--prefetch", type=int, default=0, help="slides downloaded ahead, in parallel")
+    ap.add_argument("--hours", type=float, default=None, help="start no new slide after this many hours")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--workers", type=int, default=4)
@@ -64,43 +70,67 @@ def main():
     sources = list(args.slides)
     if args.list:
         sources += [l.strip() for l in open(args.list) if l.strip() and not l.startswith("#")]
-    args.out.mkdir(parents=True, exist_ok=True)
+    outs = {st: (args.out if len(args.stain) == 1 else args.out / ("original" if st == "none" else st)) for st in args.stain}
+    for o in outs.values():
+        o.mkdir(parents=True, exist_ok=True)
+    name_of = lambda src: src.rstrip("/").split("/")[-1].rsplit(".", 1)[0]
+    todo = [s for s in sources if not all((o / f"{name_of(s)}.pt").exists() for o in outs.values())]
+    print(f"{len(sources)} slides listed, {len(sources) - len(todo)} already done, {len(todo)} to do", flush=True)
     model, tf = build_extractor(args.device, args.encoder)
     pool = ThreadPoolExecutor(args.workers)
     tmp = Path(tempfile.mkdtemp(prefix="iris_slides_"))
+    downloads = ThreadPoolExecutor(max(1, args.prefetch))
+    futures = {}
+    start = time.time()
 
-    for n, src in enumerate(sources, 1):
-        name = src.rstrip("/").split("/")[-1].rsplit(".", 1)[0]
-        out = args.out / f"{name}.pt"
-        if out.exists():
-            continue
+    def ahead(i):
+        """Start downloading slides i .. i + prefetch in the background."""
+        for j in range(i, min(i + max(1, args.prefetch), len(todo))):
+            if j not in futures:
+                futures[j] = downloads.submit(fetch, todo[j], tmp)
+
+    for n, src in enumerate(todo):
+        if args.hours and time.time() - start > args.hours * 3600:
+            print(f"time limit of {args.hours} h reached: stopping, {len(todo) - n} slides left", flush=True)
+            break
+        name = name_of(src)
+        ahead(n)
         t0 = time.time()
-        path, downloaded = fetch(src, tmp)
+        try:
+            path, downloaded = futures.pop(n).result()
+        except Exception as e:                 # one bad download must not stop the whole run
+            print(f"[{n + 1}/{len(todo)}] {name}: FAILED to download ({e})", flush=True)
+            continue
+        t_dl = time.time() - t0
         try:
             slide = open_slide(path)
             tiler = MicronTiler(slide)
             coords = tiler.coords()
-            bag = {"mpp": tiler.mpp0, "level": tiler.level, "read_px": tiler.read_px}
             if len(coords) == 0:
-                print(f"[{n}/{len(sources)}] {name}: no tissue tiles, skipped", flush=True)
+                print(f"[{n + 1}/{len(todo)}] {name}: no tissue tiles, skipped", flush=True)
                 continue
-            if args.stain == "macenko":
-                he, max_c, bag["stain_reference_colours"] = stain.fit_slide(slide, coords, None, reader=tiler.read)
-                load = lambda xy: tf(stain.normalize(tiler.read(xy), he, max_c))
-            else:
-                load = lambda xy: tf(tiler.read(xy))
-            feats = []
-            for i in range(0, len(coords), args.batch):
-                batch = torch.stack(list(pool.map(load, coords[i: i + args.batch])))
-                with torch.no_grad():
-                    feats.append(model(batch.to(args.device)).cpu().half())
-            bag.update(features=torch.cat(feats), coords=torch.from_numpy(coords))
-            torch.save(bag, out)
-            print(f"[{n}/{len(sources)}] {name}: {len(coords)} tiles, {tiler.mpp0:.3f} um/px, level {tiler.level}, "
-                  f"read {tiler.read_px} px, {time.time() - t0:.0f} s", flush=True)
+            for st, o in outs.items():
+                bag = {"mpp": tiler.mpp0, "level": tiler.level, "read_px": tiler.read_px}
+                if st == "macenko":
+                    he, max_c, bag["stain_reference_colours"] = stain.fit_slide(slide, coords, None, reader=tiler.read)
+                    load = lambda xy: tf(stain.normalize(tiler.read(xy), he, max_c))
+                else:
+                    load = lambda xy: tf(tiler.read(xy))
+                feats = []
+                for i in range(0, len(coords), args.batch):
+                    batch = torch.stack(list(pool.map(load, coords[i: i + args.batch])))
+                    with torch.no_grad():
+                        feats.append(model(batch.to(args.device)).cpu().half())
+                bag.update(features=torch.cat(feats), coords=torch.from_numpy(coords))
+                torch.save(bag, o / f"{name}.pt")
+            print(f"[{n + 1}/{len(todo)}] {name}: {len(coords)} tiles, {tiler.mpp0:.3f} um/px, read {tiler.read_px} px | "
+                  f"waited {t_dl:.0f} s for the download, {time.time() - t0 - t_dl:.0f} s to process", flush=True)
+        except Exception as e:                 # a damaged slide must not stop the whole run
+            print(f"[{n + 1}/{len(todo)}] {name}: FAILED ({type(e).__name__}: {e})", flush=True)
         finally:
             if downloaded:
                 path.unlink(missing_ok=True)
+    downloads.shutdown(cancel_futures=True)
     shutil.rmtree(tmp, ignore_errors=True)
 
 
