@@ -74,3 +74,13 @@ stain-normalised model.
   augmentation worth testing on it.
 
 Three slides only; the real test needs all 339 slides and a decision rule written first.
+
+## Checking the PAR rule
+
+`scripts/15_external_vs_pathologists.py` takes the grades CSVs of `scripts/14_grade_external.py`
+(one per model) and the PAR labels (`annotations/slide_labels.tsv`, saved to
+`data/external/par/`). It gives the QWK against each pathologist with a bootstrap 95% CI, the
+benign check, a confusion table and the paired change between models, then prints PASS or FAIL
+for the rule in `experiments.md`. Tested on made-up grades: a "model" that copies pathologist 1
+gets QWK 1.000 against pathologist 1 and 0.812 against pathologist 2, the published agreement
+between the two.
