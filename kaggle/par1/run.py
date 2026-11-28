@@ -49,7 +49,7 @@ env = dict(os.environ, HF_TOKEN=token)
 t = time.time()
 run(sys.executable, f"{CODE}/scripts/13_external_features.py", "--list", "/tmp/my_slides.txt",
     "--out", f"{OUT}/par", "--stain", "none", "macenko", "--encoder", "hibou-b", "--device", "cuda",
-    "--workers", "4", "--prefetch", "8", "--hours", "10.5", env=env)
+    "--workers", "4", "--prefetch", "8", "--hours", "5", env=env)   # 5 h: fits the week's GPU quota; slides left over are done after the reset
 timing = {"part": PART, "slides": len(mine), "features_s": round(time.time() - t),
           "done_original": len(os.listdir(f"{OUT}/par/original")), "done_macenko": len(os.listdir(f"{OUT}/par/macenko")),
           "total_s": round(time.time() - t0)}
